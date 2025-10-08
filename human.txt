@@ -1,0 +1,15 @@
+first run docker:
+
+-> docker compose up -d --build
+
+to colse 
+-> docker-compose down
+
+then fix backend 
+
+-> npx prisma migrate dev --name init
+-> npx prisma db seed
+
+then run frontend and backend both by 
+
+-> npm run dev

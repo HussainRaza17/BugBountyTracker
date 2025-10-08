@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  RESEARCHER
+  ADMIN
+}
+
+enum VulnerabilityStatus {
+  REPORTED
+  VERIFIED
+  FIXED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(RESEARCHER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  vulnerabilities Vulnerabilities[]
+  comments        Comments[]
+
+  @@map("users")
+}
+
+model Vulnerabilities {
+  id                String               @id @default(cuid())
+  title             String
+  description       String
+  asset             String
+  stepsToReproduce  String
+  cvssScore         Float
+  status            VulnerabilityStatus  @default(REPORTED)
+  reporterId        String
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  // Relations
+  reporter   User         @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  comments   Comments[]
+  attachments Attachments[]
+
+  @@map("vulnerabilities")
+}
+
+model Comments {
+  id             String   @id @default(cuid())
+  content        String
+  vulnerabilityId String
+  userId         String
+  createdAt      DateTime @default(now())
+
+  // Relations
+  vulnerability Vulnerabilities @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Attachments {
+  id             String   @id @default(cuid())
+  fileName       String
+  fileUrl        String
+  fileSize       Int
+  mimeType       String
+  vulnerabilityId String
+  uploadedAt     DateTime @default(now())
+
+  // Relations
+  vulnerability Vulnerabilities @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}

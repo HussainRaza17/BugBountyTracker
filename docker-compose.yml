@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: bugbounty-postgres
+    environment:
+      POSTGRES_DB: bugbountytracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bugbounty-backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/bugbountytracker
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      JWT_EXPIRES_IN: 7d
+      PORT: 5000
+      NODE_ENV: production
+      FRONTEND_URL: http://localhost:3000
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/uploads:/app/uploads
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bugbounty-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
