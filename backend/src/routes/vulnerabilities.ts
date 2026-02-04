@@ -13,7 +13,8 @@ const createVulnerabilitySchema = z.object({
   description: z.string().min(1, 'Description is required'),
   asset: z.string().min(1, 'Asset is required'),
   stepsToReproduce: z.string().min(1, 'Steps to reproduce is required'),
-  cvssScore: z.number().min(0).max(10, 'CVSS score must be between 0 and 10')
+  // Change z.number() to z.coerce.number() to handle string inputs from forms
+  cvssScore: z.coerce.number().min(0).max(10, 'CVSS score must be between 0 and 10')
 });
 
 const updateVulnerabilitySchema = z.object({
@@ -24,6 +25,7 @@ const updateVulnerabilitySchema = z.object({
   cvssScore: z.number().min(0).max(10).optional(),
   status: z.enum(['REPORTED', 'VERIFIED', 'FIXED']).optional()
 });
+
 
 // Get all vulnerabilities with filtering and pagination
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
@@ -321,50 +323,36 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // Get analytics (admin only)
-router.get('/analytics/overview', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+router.get('/analytics/overview', authenticateToken, async (req: AuthRequest, res) => {
   try {
+    const isResearcher = req.user!.role === 'RESEARCHER';
+    const whereClause = isResearcher ? { reporterId: req.user!.id } : {};
+
     const [
       totalVulnerabilities,
       vulnerabilitiesByStatus,
       vulnerabilitiesBySeverity,
-      recentVulnerabilities,
-      topReporters
+      recentVulnerabilities
     ] = await Promise.all([
-      prisma.vulnerabilities.count(),
+      prisma.vulnerabilities.count({ where: whereClause }),
       prisma.vulnerabilities.groupBy({
         by: ['status'],
+        where: whereClause,
         _count: { status: true }
       }),
       prisma.vulnerabilities.groupBy({
         by: ['cvssScore'],
+        where: whereClause,
         _count: { cvssScore: true },
         orderBy: { cvssScore: 'desc' }
       }),
       prisma.vulnerabilities.findMany({
+        where: whereClause,
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          reporter: {
-            select: {
-              name: true,
-              email: true
-            }
-          }
+          reporter: { select: { name: true, email: true } }
         }
-      }),
-      prisma.user.findMany({
-        where: { role: 'RESEARCHER' },
-        include: {
-          _count: {
-            select: { vulnerabilities: true }
-          }
-        },
-        orderBy: {
-          vulnerabilities: {
-            _count: 'desc'
-          }
-        },
-        take: 10
       })
     ]);
 
@@ -372,11 +360,10 @@ router.get('/analytics/overview', authenticateToken, requireRole(['ADMIN']), asy
       totalVulnerabilities,
       vulnerabilitiesByStatus,
       vulnerabilitiesBySeverity,
-      recentVulnerabilities,
-      topReporters
+      recentVulnerabilities
     });
   } catch (error) {
-    throw error;
+    res.status(500).json({ message: 'Error fetching analytics' });
   }
 });
 

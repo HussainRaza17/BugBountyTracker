@@ -1,105 +1,61 @@
-import { useQuery } from '@tanstack/react-query'
-import { useAuth } from '../hooks/useAuth'
-import { api } from '../lib/api'
-import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import { VulnerabilityCard } from '../components/VulnerabilityCard'
-import { StatsCards } from '../components/StatsCards'
-import { RecentActivity } from '../components/RecentActivity'
-import { Link } from 'react-router-dom'
-import { PlusIcon } from '@heroicons/react/24/outline'
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api';
+import StatsCards from '../components/StatsCards';
+import RecentActivity from '../components/RecentActivity';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
-export const DashboardPage: React.FC = () => {
-  const { user } = useAuth()
+const DashboardPage = () => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: () => api.get('/vulnerabilities/analytics/overview').then(res => res.data)
+  });
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['user-stats'],
-    queryFn: async () => {
-      const response = await api.get('/users/stats')
-      return response.data
-    },
-  })
-
-  const { data: vulnerabilities, isLoading: vulnsLoading } = useQuery({
-    queryKey: ['recent-vulnerabilities'],
-    queryFn: async () => {
-      const response = await api.get('/vulnerabilities?limit=5&sortBy=createdAt&sortOrder=desc')
-      return response.data
-    },
-  })
-
-  if (statsLoading || vulnsLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
-  }
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <div className="p-6 text-red-500">Error loading dashboard data.</div>;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-            Welcome back, {user?.name}!
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Here's what's happening with your bug bounty reports.
-          </p>
-        </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
-          <Link
-            to="/vulnerabilities/new"
-            className="btn btn-primary btn-md"
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            New Report
-          </Link>
+    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Security Overview</h1>
+          <p className="text-gray-500 mt-1">Track and manage your reported vulnerabilities and platform analytics.</p>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <StatsCards stats={stats} />
+      {/* Modern Stats Grid */}
+      <StatsCards stats={data} />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recent Vulnerabilities */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="text-lg font-medium text-gray-900">Recent Reports</h3>
-            <p className="text-sm text-gray-500">Your latest vulnerability submissions</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Activity Feed */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-800">Recent Reports</h2>
           </div>
-          <div className="card-content">
-            {vulnerabilities?.vulnerabilities?.length > 0 ? (
-              <div className="space-y-4">
-                {vulnerabilities.vulnerabilities.map((vuln: any) => (
-                  <VulnerabilityCard key={vuln.id} vulnerability={vuln} />
-                ))}
-                <div className="text-center">
-                  <Link
-                    to="/vulnerabilities"
-                    className="text-sm text-primary-600 hover:text-primary-500"
-                  >
-                    View all reports →
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-gray-500">No reports yet</p>
-                <Link
-                  to="/vulnerabilities/new"
-                  className="mt-2 text-primary-600 hover:text-primary-500 text-sm"
-                >
-                  Create your first report
-                </Link>
-              </div>
-            )}
-          </div>
+          <RecentActivity vulnerabilities={data?.recentVulnerabilities} />
         </div>
 
-        {/* Recent Activity */}
-        <RecentActivity />
+        {/* Sidebar Quick Stats */}
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Severity Distribution</h2>
+            <div className="space-y-3">
+              {data?.vulnerabilitiesBySeverity?.map((sev: any) => (
+                <div key={sev.cvssScore} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 font-medium">CVSS {sev.cvssScore.toFixed(1)}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 font-bold">
+                    {sev._count.cvssScore}
+                  </span>
+                </div>
+              ))}
+              {(!data?.vulnerabilitiesBySeverity || data.vulnerabilitiesBySeverity.length === 0) && (
+                <p className="text-gray-400 text-sm italic">No data available</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  )
-}
+  );
+};
+
+export default DashboardPage;

@@ -1,86 +1,36 @@
 import { 
   BugAntIcon, 
-  CheckCircleIcon, 
-  ClockIcon, 
-  ExclamationTriangleIcon 
-} from '@heroicons/react/24/outline'
-import { getSeverityColor, getSeverityLabel } from '../lib/utils'
+  CheckBadgeIcon, 
+  WrenchScrewdriverIcon, 
+  ShieldCheckIcon 
+} from '@heroicons/react/24/outline';
 
-interface StatsCardsProps {
-  stats: {
-    totalVulnerabilities: number
-    vulnerabilitiesByStatus: Array<{ status: string; _count: { status: number } }>
-    vulnerabilitiesBySeverity: Array<{ cvssScore: number; _count: { cvssScore: number } }>
-  } | undefined
-}
+const StatsCards = ({ stats }: { stats: any }) => {
+  const findCount = (status: string) => 
+    stats?.vulnerabilitiesByStatus?.find((s: any) => s.status === status)?._count?.status || 0;
 
-export const StatsCards: React.FC<StatsCardsProps> = ({ stats }) => {
-  const getStatusCount = (status: string) => {
-    return stats?.vulnerabilitiesByStatus?.find(s => s.status === status)?._count?.status || 0
-  }
-
-  const getSeverityCount = (minScore: number, maxScore: number = 10) => {
-    return stats?.vulnerabilitiesBySeverity?.filter(s => 
-      s.cvssScore >= minScore && s.cvssScore < maxScore
-    ).reduce((sum, s) => sum + s._count.cvssScore, 0) || 0
-  }
-
-  const cards = [
-    {
-      name: 'Total Reports',
-      value: stats?.totalVulnerabilities || 0,
-      icon: BugAntIcon,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
-    },
-    {
-      name: 'Verified',
-      value: getStatusCount('VERIFIED'),
-      icon: CheckCircleIcon,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
-    },
-    {
-      name: 'Fixed',
-      value: getStatusCount('FIXED'),
-      icon: CheckCircleIcon,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
-    },
-    {
-      name: 'High Severity',
-      value: getSeverityCount(7),
-      icon: ExclamationTriangleIcon,
-      color: 'text-red-600',
-      bgColor: 'bg-red-100',
-    },
-  ]
+  const cardItems = [
+    { label: 'Total Reports', value: stats?.totalVulnerabilities || 0, icon: BugAntIcon, color: 'blue' },
+    { label: 'Verified', value: findCount('VERIFIED'), icon: CheckBadgeIcon, color: 'amber' },
+    { label: 'Fixed', value: findCount('FIXED'), icon: WrenchScrewdriverIcon, color: 'green' },
+    { label: 'Reported', value: findCount('REPORTED'), icon: ShieldCheckIcon, color: 'slate' },
+  ];
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-      {cards.map((card) => (
-        <div key={card.name} className="card">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className={`p-3 rounded-md ${card.bgColor}`}>
-                  <card.icon className={`h-6 w-6 ${card.color}`} />
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    {card.name}
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {card.value}
-                  </dd>
-                </dl>
-              </div>
-            </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {cardItems.map((item) => (
+        <div key={item.label} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+          <div className={`p-3 rounded-xl bg-${item.color}-50 text-${item.color}-600`}>
+            <item.icon className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">{item.label}</p>
+            <p className="text-2xl font-bold text-gray-900">{item.value}</p>
           </div>
         </div>
       ))}
     </div>
-  )
-}
+  );
+};
+
+export default StatsCards;

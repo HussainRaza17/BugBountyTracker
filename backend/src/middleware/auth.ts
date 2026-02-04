@@ -18,17 +18,23 @@ export const authenticateToken = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    const secret = process.env.JWT_SECRET;
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
+
+    if (!secret) {
+      console.error("FATAL: JWT_SECRET not defined");
+      res.status(500).json({ message: 'Internal configuration error' });
+      return;
+    }
 
     if (!token) {
       res.status(401).json({ message: 'Access token required' });
       return;
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const decoded = jwt.verify(token, secret) as any;
     
-    // Verify user still exists
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: { id: true, email: true, role: true }
